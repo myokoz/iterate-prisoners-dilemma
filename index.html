@@ -1,53 +1,4 @@
-// Show the next strategy button
-        function showNextStrategyButton() {
-            // Hide game choices
-            cooperateBtn.disabled = true;
-            defectBtn.disabled = true;
-            
-            // Show next strategy button
-            nextStrategyBtnContainer.classList.remove('hidden');
-        }
-        
-        // Move to the next strategy
-        function moveToNextStrategy() {
-            // Hide next strategy button
-            nextStrategyBtnContainer.classList.add('hidden');
-            
-            // Reset round counter and increment strategy
-            state.round = 1;
-            state.strategyIndex++;
-            
-            // Re-enable game buttons
-            cooperateBtn.disabled = false;
-            defectBtn.disabled = false;
-            
-            // Check if game is over (all strategies completed)
-            if (state.strategyIndex > 9) {
-                endGame();
-            } else {
-                updateUI();
-            }
-        }        .next-strategy-btn {
-            display: block;
-            margin: 15px auto;
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #ff9800;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .next-strategy-btn:hover {
-            background-color: #e68a00;
-        }
-        .strategy-complete-message {
-            text-align: center;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 10px;
-        }<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -151,6 +102,53 @@
         .replay-btn:hover, .payoff-btn:hover {
             background-color: #0b7dda;
         }
+        .payoff-settings {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+        .payoff-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        .payoff-table th, .payoff-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .payoff-table th {
+            background-color: #f2f2f2;
+        }
+        .payoff-table input {
+            width: 50px;
+            padding: 5px;
+            text-align: center;
+        }
+        .next-strategy-btn {
+            display: block;
+            margin: 15px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #ff9800;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .next-strategy-btn:hover {
+            background-color: #e68a00;
+        }
+        .strategy-complete-message {
+            text-align: center;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
         .strategy-summary {
             margin: 15px 0;
             padding: 5px;
@@ -183,32 +181,6 @@
             padding: 15px;
             border-radius: 5px;
         }
-        .payoff-settings {
-            background-color: #fff;
-            border: 1px solid #ddd;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 15px;
-            margin-bottom: 15px;
-        }
-        .payoff-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 15px;
-        }
-        .payoff-table th, .payoff-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: center;
-        }
-        .payoff-table th {
-            background-color: #f2f2f2;
-        }
-        .payoff-table input {
-            width: 50px;
-            padding: 5px;
-            text-align: center;
-        }
     </style>
 </head>
 <body>
@@ -216,7 +188,7 @@
     
     <div class="instructions">
         <h2>Instructions:</h2>
-        <p>In this game, you'll play 9 rounds of the Prisoner's Dilemma against a computer opponent with different strategies.</p>
+        <p>In this game, you'll play 9 rounds against each of the 9 computer strategies (total of 81 rounds).</p>
         <p>For each round, you can choose to either <strong>Cooperate</strong> or <strong>Defect</strong>.</p>
         
         <div class="payoff-settings">
@@ -253,7 +225,18 @@
             <button id="reset-payoffs" class="payoff-btn">Reset to Default</button>
         </div>
         
-        <p>Each round, the computer will use a different strategy (S_1 through S_9).</p>
+        <p>You'll play against each of these computer strategies:</p>
+        <ol>
+            <li><strong>Always Defects</strong> - always defects regardless of what you do</li>
+            <li><strong>Tit-for-Tat</strong> - cooperates first and then reproduces your last move</li>
+            <li><strong>Grudger</strong> - cooperates until you defect; then defects all the time</li>
+            <li><strong>Always Cooperates</strong> - always cooperates regardless of what you do</li>
+            <li><strong>Detective</strong> - cooperates, defects, cooperates then checks what you did on the 3rd round: if you haven't retaliated, it defects all the time; otherwise it plays Tit-for-Tat</li>
+            <li><strong>Random</strong> - just cooperates or defect randomly (with a probability of 1/2)</li>
+            <li><strong>Win-Stay-Lose-Shift</strong> - cooperates first then, if you've cooperated on the last round, repeat its last move; otherwise switches</li>
+            <li><strong>Tit-For-Two-Tats</strong> - same as Tit-for-Tat but only retaliates after two defections in a row</li>
+            <li><strong>Alternates</strong> - defects first and then just alternates regardless of what you do</li>
+        </ol>
     </div>
     
     <div class="game-container">
@@ -413,6 +396,8 @@
         // DOM elements
         const currentRoundEl = document.getElementById('current-round');
         const currentStrategyEl = document.getElementById('current-strategy');
+        const currentStrategyNumberEl = document.getElementById('current-strategy-number');
+        const totalRoundsEl = document.getElementById('total-rounds');
         const cooperateBtn = document.getElementById('cooperate-btn');
         const defectBtn = document.getElementById('defect-btn');
         const playerScoreEl = document.getElementById('player-score');
@@ -445,7 +430,7 @@
 
             updateUI();
             
-            // Show game controls, hide result
+            // Show game controls, hide result and next strategy button
             resultContainerEl.classList.add('hidden');
             nextStrategyBtnContainer.classList.add('hidden');
             cooperateBtn.disabled = false;
@@ -457,9 +442,6 @@
 
         // Update the UI based on current state
         function updateUI() {
-            const currentStrategyNumberEl = document.getElementById('current-strategy-number');
-            const totalRoundsEl = document.getElementById('total-rounds');
-            
             currentStrategyNumberEl.textContent = state.strategyIndex;
             currentRoundEl.textContent = state.round;
             totalRoundsEl.textContent = state.totalRound;
@@ -469,6 +451,37 @@
             // Update strategy info
             const currentStrategy = strategies[state.strategyIndex];
             currentStrategyEl.textContent = `${currentStrategy.name} (${currentStrategy.description})`;
+        }
+
+        // Show the next strategy button
+        function showNextStrategyButton() {
+            // Hide game choices
+            cooperateBtn.disabled = true;
+            defectBtn.disabled = true;
+            
+            // Show next strategy button
+            nextStrategyBtnContainer.classList.remove('hidden');
+        }
+        
+        // Move to the next strategy
+        function moveToNextStrategy() {
+            // Hide next strategy button
+            nextStrategyBtnContainer.classList.add('hidden');
+            
+            // Reset round counter and increment strategy
+            state.round = 1;
+            state.strategyIndex++;
+            
+            // Re-enable game buttons
+            cooperateBtn.disabled = false;
+            defectBtn.disabled = false;
+            
+            // Check if game is over (all strategies completed)
+            if (state.strategyIndex > 9) {
+                endGame();
+            } else {
+                updateUI();
+            }
         }
 
         // Process a player's move
