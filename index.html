@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repeated Prisoner's Dilemma Game</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .game-container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .choices {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .choice-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .cooperate {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .defect {
+            background-color: #f44336;
+            color: white;
+        }
+        .cooperate:hover {
+            background-color: #45a049;
+        }
+        .defect:hover {
+            background-color: #d32f2f;
+        }
+        .round-info {
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .history {
+            margin-top: 20px;
+        }
+        .history-entry {
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .history-entry:nth-child(odd) {
+            background-color: #f9f9f9;
+        }
+        .scoreboard {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            font-size: 18px;
+        }
+        .instructions {
+            background-color: #f8f8f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .strategy-info {
+            margin-top: 5px;
+            font-style: italic;
+            color: #666;
+        }
+        .result-message {
+            margin-top: 20px;
+            font-weight: bold;
+            font-size: 18px;
+            text-align: center;
+        }
+        .hidden {
+            display: none;
+        }
+        .replay-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .replay-btn:hover {
+            background-color: #0b7dda;
+        }
+    </style>
+</head>
+<body>
+    <h1>Repeated Prisoner's Dilemma Game</h1>
+    
+    <div class="instructions">
+        <h2>Instructions:</h2>
+        <p>In this game, you'll play 9 rounds of the Prisoner's Dilemma against a computer opponent with different strategies.</p>
+        <p>For each round, you can choose to either <strong>Cooperate</strong> or <strong>Defect</strong>.</p>
+        <p>The payoff matrix is:</p>
+        <ul>
+            <li>Both cooperate: You get 3 points, opponent gets 3 points</li>
+            <li>You cooperate, opponent defects: You get 0 points, opponent gets 5 points</li>
+            <li>You defect, opponent cooperates: You get 5 points, opponent gets 0 points</li>
+            <li>Both defect: You get 1 point, opponent gets 1 point</li>
+        </ul>
+        <p>Each round, the computer will use a different strategy (S_1 through S_9).</p>
+    </div>
+    
+    <div class="game-container">
+        <div class="round-info">
+            Round <span id="current-round">1</span>/9
+            <div class="strategy-info">Computer Strategy: <span id="current-strategy">Always Defects</span></div>
+        </div>
+        
+        <div class="choices">
+            <button class="choice-btn cooperate" id="cooperate-btn">Cooperate</button>
+            <button class="choice-btn defect" id="defect-btn">Defect</button>
+        </div>
+        
+        <div class="scoreboard">
+            <div>Your Score: <span id="player-score">0</span></div>
+            <div>Computer Score: <span id="computer-score">0</span></div>
+        </div>
+        
+        <div class="history">
+            <h3>Game History:</h3>
+            <div id="history-container"></div>
+        </div>
+        
+        <div id="result-container" class="hidden">
+            <div class="result-message" id="result-message"></div>
+            <button class="replay-btn" id="replay-btn">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // Game state
+        const state = {
+            round: 1,
+            playerScore: 0,
+            computerScore: 0,
+            history: [], // Format: [{round, playerMove, computerMove, playerPoints, computerPoints}]
+            gameOver: false
+        };
+
+        // Computer strategies
+        const strategies = {
+            1: {
+                name: "Always Defects",
+                description: "Always defects regardless of what you do",
+                getMove: (history) => 'defect'
+            },
+            2: {
+                name: "Tit-for-Tat",
+                description: "Cooperates first and then reproduces your last move",
+                getMove: (history) => {
+                    if (history.length === 0) return 'cooperate';
+                    return history[history.length - 1].playerMove;
+                }
+            },
+            3: {
+                name: "Grudger",
+                description: "Cooperates until you defect; then defects all the time",
+                getMove: (history) => {
+                    if (history.some(h => h.playerMove === 'defect')) return 'defect';
+                    return 'cooperate';
+                }
+            },
+            4: {
+                name: "Always Cooperates",
+                description: "Always cooperates regardless of what you do",
+                getMove: (history) => 'cooperate'
+            },
+            5: {
+                name: "Detective",
+                description: "Cooperates, defects, cooperates then checks what you did on the 3rd round: if you haven't retaliated, it defects all the time; otherwise it plays Tit-for-Tat",
+                getMove: (history) => {
+                    const round = history.length + 1;
+                    if (round === 1) return 'cooperate';
+                    if (round === 2) return 'defect';
+                    if (round === 3) return 'cooperate';
+                    
+                    // After 3rd round
+                    if (round >= 4) {
+                        // Check if player defected in response to computer's defection
+                        if (history[1].playerMove === 'defect') {
+                            // Play Tit-for-Tat
+                            return history[history.length - 1].playerMove;
+                        } else {
+                            // Player didn't retaliate, defect always
+                            return 'defect';
+                        }
+                    }
+                }
+            },
+            6: {
+                name: "Random",
+                description: "Just cooperates or defects randomly (with a probability of 1/2)",
+                getMove: (history) => {
+                    return Math.random() < 0.5 ? 'cooperate' : 'defect';
+                }
+            },
+            7: {
+                name: "Win-Stay-Lose-Shift",
+                description: "Cooperates first then, if you've cooperated on the last round, repeat its last move; otherwise switches",
+                getMove: (history) => {
+                    if (history.length === 0) return 'cooperate';
+                    
+                    const lastRound = history[history.length - 1];
+                    const lastComputerMove = lastRound.computerMove;
+                    const lastPlayerMove = lastRound.playerMove;
+                    
+                    // If player cooperated last round, repeat last move
+                    if (lastPlayerMove === 'cooperate') {
+                        return lastComputerMove;
+                    } else {
+                        // If player defected, switch strategy
+                        return lastComputerMove === 'cooperate' ? 'defect' : 'cooperate';
+                    }
+                }
+            },
+            8: {
+                name: "Tit-For-Two-Tats",
+                description: "Same as Tit-for-Tat but only retaliates after two defections in a row",
+                getMove: (history) => {
+                    if (history.length < 2) return 'cooperate';
+                    
+                    // Check for two consecutive defections
+                    if (history[history.length - 1].playerMove === 'defect' && 
+                        history[history.length - 2].playerMove === 'defect') {
+                        return 'defect';
+                    }
+                    
+                    return 'cooperate';
+                }
+            },
+            9: {
+                name: "Alternates",
+                description: "Defects first and then just alternates regardless of what you do",
+                getMove: (history) => {
+                    if (history.length % 2 === 0) return 'defect';
+                    return 'cooperate';
+                }
+            }
+        };
+
+        // DOM elements
+        const currentRoundEl = document.getElementById('current-round');
+        const currentStrategyEl = document.getElementById('current-strategy');
+        const cooperateBtn = document.getElementById('cooperate-btn');
+        const defectBtn = document.getElementById('defect-btn');
+        const playerScoreEl = document.getElementById('player-score');
+        const computerScoreEl = document.getElementById('computer-score');
+        const historyContainerEl = document.getElementById('history-container');
+        const resultContainerEl = document.getElementById('result-container');
+        const resultMessageEl = document.getElementById('result-message');
+        const replayBtn = document.getElementById('replay-btn');
+
+        // Initialize the game
+        function initGame() {
+            state.round = 1;
+            state.playerScore = 0;
+            state.computerScore = 0;
+            state.history = [];
+            state.gameOver = false;
+
+            updateUI();
+            
+            // Show game controls, hide result
+            resultContainerEl.classList.add('hidden');
+            cooperateBtn.disabled = false;
+            defectBtn.disabled = false;
+            
+            // Clear history
+            historyContainerEl.innerHTML = '';
+        }
+
+        // Update the UI based on current state
+        function updateUI() {
+            currentRoundEl.textContent = state.round;
+            playerScoreEl.textContent = state.playerScore;
+            computerScoreEl.textContent = state.computerScore;
+            
+            // Update strategy info
+            const currentStrategy = strategies[state.round];
+            currentStrategyEl.textContent = `${currentStrategy.name} (${currentStrategy.description})`;
+        }
+
+        // Process a player's move
+        function processMove(playerMove) {
+            if (state.gameOver) return;
+
+            // Get computer's move based on current strategy
+            const currentStrategy = strategies[state.round];
+            const computerMove = currentStrategy.getMove(state.history);
+
+            // Calculate points
+            let playerPoints = 0;
+            let computerPoints = 0;
+
+            if (playerMove === 'cooperate' && computerMove === 'cooperate') {
+                playerPoints = 3;
+                computerPoints = 3;
+            } else if (playerMove === 'cooperate' && computerMove === 'defect') {
+                playerPoints = 0;
+                computerPoints = 5;
+            } else if (playerMove === 'defect' && computerMove === 'cooperate') {
+                playerPoints = 5;
+                computerPoints = 0;
+            } else { // Both defect
+                playerPoints = 1;
+                computerPoints = 1;
+            }
+
+            // Update scores
+            state.playerScore += playerPoints;
+            state.computerScore += computerPoints;
+
+            // Record history
+            state.history.push({
+                round: state.round,
+                playerMove,
+                computerMove,
+                playerPoints,
+                computerPoints
+            });
+
+            // Display move in history
+            const historyEntry = document.createElement('div');
+            historyEntry.className = 'history-entry';
+            historyEntry.innerHTML = `
+                <strong>Round ${state.round}:</strong> 
+                You ${playerMove === 'cooperate' ? 'cooperated' : 'defected'}, 
+                Computer ${computerMove === 'cooperate' ? 'cooperated' : 'defected'} 
+                (You: +${playerPoints}, Computer: +${computerPoints})
+            `;
+            historyContainerEl.prepend(historyEntry);
+
+            // Update round
+            state.round++;
+
+            // Check if game is over
+            if (state.round > 9) {
+                endGame();
+            } else {
+                updateUI();
+            }
+        }
+
+        // End the game
+        function endGame() {
+            state.gameOver = true;
+            
+            // Disable buttons
+            cooperateBtn.disabled = true;
+            defectBtn.disabled = true;
+            
+            // Show result
+            resultContainerEl.classList.remove('hidden');
+            
+            if (state.playerScore > state.computerScore) {
+                resultMessageEl.textContent = `Game Over! You win! (${state.playerScore} to ${state.computerScore})`;
+            } else if (state.playerScore < state.computerScore) {
+                resultMessageEl.textContent = `Game Over! Computer wins! (${state.computerScore} to ${state.playerScore})`;
+            } else {
+                resultMessageEl.textContent = `Game Over! It's a tie! (${state.playerScore} points each)`;
+            }
+        }
+
+        // Event handlers
+        cooperateBtn.addEventListener('click', () => processMove('cooperate'));
+        defectBtn.addEventListener('click', () => processMove('defect'));
+        replayBtn.addEventListener('click', initGame);
+
+        // Start the game
+        initGame();
+    </script>
+</body>
+</html>
