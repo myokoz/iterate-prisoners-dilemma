@@ -1,4 +1,53 @@
-<!DOCTYPE html>
+// Show the next strategy button
+        function showNextStrategyButton() {
+            // Hide game choices
+            cooperateBtn.disabled = true;
+            defectBtn.disabled = true;
+            
+            // Show next strategy button
+            nextStrategyBtnContainer.classList.remove('hidden');
+        }
+        
+        // Move to the next strategy
+        function moveToNextStrategy() {
+            // Hide next strategy button
+            nextStrategyBtnContainer.classList.add('hidden');
+            
+            // Reset round counter and increment strategy
+            state.round = 1;
+            state.strategyIndex++;
+            
+            // Re-enable game buttons
+            cooperateBtn.disabled = false;
+            defectBtn.disabled = false;
+            
+            // Check if game is over (all strategies completed)
+            if (state.strategyIndex > 9) {
+                endGame();
+            } else {
+                updateUI();
+            }
+        }        .next-strategy-btn {
+            display: block;
+            margin: 15px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #ff9800;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .next-strategy-btn:hover {
+            background-color: #e68a00;
+        }
+        .strategy-complete-message {
+            text-align: center;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -219,6 +268,11 @@
             <button class="choice-btn defect" id="defect-btn">Defect</button>
         </div>
         
+        <div id="next-strategy-container" class="hidden">
+            <p class="strategy-complete-message">Strategy complete! Ready to move to the next strategy?</p>
+            <button class="next-strategy-btn" id="next-strategy-btn">Continue to Next Strategy</button>
+        </div>
+        
         <div class="scoreboard">
             <div>Your Score: <span id="player-score">0</span></div>
             <div>Computer Score: <span id="computer-score">0</span></div>
@@ -367,6 +421,8 @@
         const resultContainerEl = document.getElementById('result-container');
         const resultMessageEl = document.getElementById('result-message');
         const replayBtn = document.getElementById('replay-btn');
+        const nextStrategyBtnContainer = document.getElementById('next-strategy-container');
+        const nextStrategyBtn = document.getElementById('next-strategy-btn');
 
         // Initialize the game
         function initGame() {
@@ -391,6 +447,7 @@
             
             // Show game controls, hide result
             resultContainerEl.classList.add('hidden');
+            nextStrategyBtnContainer.classList.add('hidden');
             cooperateBtn.disabled = false;
             defectBtn.disabled = false;
             
@@ -469,25 +526,20 @@
             
             // Check if we've completed all rounds for current strategy
             if (state.round > 9) {
-                state.round = 1;
-                state.strategyIndex++;
+                // Show next strategy button instead of automatically advancing
+                showNextStrategyButton();
                 
                 // Add a strategy summary
                 const summarySeparator = document.createElement('div');
                 summarySeparator.className = 'strategy-summary';
                 summarySeparator.innerHTML = `
                     <hr>
-                    <h4>Strategy ${state.strategyIndex - 1} (${currentStrategy.name}) Summary:</h4>
-                    <p>Your Score: ${state.strategyScores[state.strategyIndex - 1].playerScore}, 
-                    Computer Score: ${state.strategyScores[state.strategyIndex - 1].computerScore}</p>
+                    <h4>Strategy ${state.strategyIndex} (${currentStrategy.name}) Summary:</h4>
+                    <p>Your Score: ${state.strategyScores[state.strategyIndex].playerScore}, 
+                    Computer Score: ${state.strategyScores[state.strategyIndex].computerScore}</p>
                     <hr>
                 `;
                 historyContainerEl.prepend(summarySeparator);
-            }
-
-            // Check if game is over (all strategies completed)
-            if (state.strategyIndex > 9) {
-                endGame();
             } else {
                 updateUI();
             }
@@ -592,6 +644,7 @@
             processMove('defect');
         });
         
+        nextStrategyBtn.addEventListener('click', moveToNextStrategy);
         replayBtn.addEventListener('click', initGame);
         document.getElementById('reset-payoffs').addEventListener('click', resetPayoffMatrix);
 
