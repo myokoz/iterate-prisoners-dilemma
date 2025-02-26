@@ -12,7 +12,7 @@
             padding: 20px;
             line-height: 1.6;
         }
-        h1, h2 {
+        h1, h2, h3 {
             color: #333;
         }
         .game-container {
@@ -88,7 +88,7 @@
         .hidden {
             display: none;
         }
-        .replay-btn {
+        .replay-btn, .payoff-btn {
             display: block;
             margin: 20px auto;
             padding: 10px 20px;
@@ -99,8 +99,34 @@
             border-radius: 5px;
             cursor: pointer;
         }
-        .replay-btn:hover {
+        .replay-btn:hover, .payoff-btn:hover {
             background-color: #0b7dda;
+        }
+        .payoff-settings {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+        .payoff-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        .payoff-table th, .payoff-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .payoff-table th {
+            background-color: #f2f2f2;
+        }
+        .payoff-table input {
+            width: 50px;
+            padding: 5px;
+            text-align: center;
         }
     </style>
 </head>
@@ -111,13 +137,41 @@
         <h2>Instructions:</h2>
         <p>In this game, you'll play 9 rounds of the Prisoner's Dilemma against a computer opponent with different strategies.</p>
         <p>For each round, you can choose to either <strong>Cooperate</strong> or <strong>Defect</strong>.</p>
-        <p>The payoff matrix is:</p>
-        <ul>
-            <li>Both cooperate: You get 3 points, opponent gets 3 points</li>
-            <li>You cooperate, opponent defects: You get 0 points, opponent gets 5 points</li>
-            <li>You defect, opponent cooperates: You get 5 points, opponent gets 0 points</li>
-            <li>Both defect: You get 1 point, opponent gets 1 point</li>
-        </ul>
+        
+        <div class="payoff-settings">
+            <h3>Payoff Matrix Settings:</h3>
+            <table class="payoff-table">
+                <tr>
+                    <th></th>
+                    <th>Computer Cooperates</th>
+                    <th>Computer Defects</th>
+                </tr>
+                <tr>
+                    <td><strong>You Cooperate</strong></td>
+                    <td>
+                        You: <input type="number" id="cc-player" value="3" min="0" max="10">
+                        Computer: <input type="number" id="cc-computer" value="3" min="0" max="10">
+                    </td>
+                    <td>
+                        You: <input type="number" id="cd-player" value="0" min="0" max="10">
+                        Computer: <input type="number" id="cd-computer" value="5" min="0" max="10">
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>You Defect</strong></td>
+                    <td>
+                        You: <input type="number" id="dc-player" value="5" min="0" max="10">
+                        Computer: <input type="number" id="dc-computer" value="0" min="0" max="10">
+                    </td>
+                    <td>
+                        You: <input type="number" id="dd-player" value="1" min="0" max="10">
+                        Computer: <input type="number" id="dd-computer" value="1" min="0" max="10">
+                    </td>
+                </tr>
+            </table>
+            <button id="reset-payoffs" class="payoff-btn">Reset to Default</button>
+        </div>
+        
         <p>Each round, the computer will use a different strategy (S_1 through S_9).</p>
     </div>
     
@@ -155,7 +209,14 @@
             playerScore: 0,
             computerScore: 0,
             history: [], // Format: [{round, playerMove, computerMove, playerPoints, computerPoints}]
-            gameOver: false
+            gameOver: false,
+            payoffs: {
+                // [playerCooperates, computerCooperates] => [playerPoints, computerPoints]
+                'cooperate-cooperate': [3, 3], 
+                'cooperate-defect': [0, 5],
+                'defect-cooperate': [5, 0],
+                'defect-defect': [1, 1]
+            }
         };
 
         // Computer strategies
@@ -309,23 +370,10 @@
             const currentStrategy = strategies[state.round];
             const computerMove = currentStrategy.getMove(state.history);
 
-            // Calculate points
-            let playerPoints = 0;
-            let computerPoints = 0;
-
-            if (playerMove === 'cooperate' && computerMove === 'cooperate') {
-                playerPoints = 3;
-                computerPoints = 3;
-            } else if (playerMove === 'cooperate' && computerMove === 'defect') {
-                playerPoints = 0;
-                computerPoints = 5;
-            } else if (playerMove === 'defect' && computerMove === 'cooperate') {
-                playerPoints = 5;
-                computerPoints = 0;
-            } else { // Both defect
-                playerPoints = 1;
-                computerPoints = 1;
-            }
+            // Calculate points based on payoff matrix
+            let key = `${playerMove}-${computerMove}`;
+            let playerPoints = state.payoffs[key][0];
+            let computerPoints = state.payoffs[key][1];
 
             // Update scores
             state.playerScore += playerPoints;
@@ -382,10 +430,50 @@
             }
         }
 
+        // Update payoff matrix from input fields
+        function updatePayoffMatrix() {
+            const ccPlayer = parseInt(document.getElementById('cc-player').value);
+            const ccComputer = parseInt(document.getElementById('cc-computer').value);
+            const cdPlayer = parseInt(document.getElementById('cd-player').value);
+            const cdComputer = parseInt(document.getElementById('cd-computer').value);
+            const dcPlayer = parseInt(document.getElementById('dc-player').value);
+            const dcComputer = parseInt(document.getElementById('dc-computer').value);
+            const ddPlayer = parseInt(document.getElementById('dd-player').value);
+            const ddComputer = parseInt(document.getElementById('dd-computer').value);
+            
+            state.payoffs['cooperate-cooperate'] = [ccPlayer, ccComputer];
+            state.payoffs['cooperate-defect'] = [cdPlayer, cdComputer];
+            state.payoffs['defect-cooperate'] = [dcPlayer, dcComputer];
+            state.payoffs['defect-defect'] = [ddPlayer, ddComputer];
+        }
+        
+        // Reset payoff matrix to default values
+        function resetPayoffMatrix() {
+            document.getElementById('cc-player').value = 3;
+            document.getElementById('cc-computer').value = 3;
+            document.getElementById('cd-player').value = 0;
+            document.getElementById('cd-computer').value = 5;
+            document.getElementById('dc-player').value = 5;
+            document.getElementById('dc-computer').value = 0;
+            document.getElementById('dd-player').value = 1;
+            document.getElementById('dd-computer').value = 1;
+            
+            updatePayoffMatrix();
+        }
+
         // Event handlers
-        cooperateBtn.addEventListener('click', () => processMove('cooperate'));
-        defectBtn.addEventListener('click', () => processMove('defect'));
+        cooperateBtn.addEventListener('click', () => {
+            updatePayoffMatrix();
+            processMove('cooperate');
+        });
+        
+        defectBtn.addEventListener('click', () => {
+            updatePayoffMatrix();
+            processMove('defect');
+        });
+        
         replayBtn.addEventListener('click', initGame);
+        document.getElementById('reset-payoffs').addEventListener('click', resetPayoffMatrix);
 
         // Start the game
         initGame();
