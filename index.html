@@ -102,6 +102,38 @@
         .replay-btn:hover, .payoff-btn:hover {
             background-color: #0b7dda;
         }
+        .strategy-summary {
+            margin: 15px 0;
+            padding: 5px;
+            background-color: #f0f8ff;
+            border-radius: 5px;
+        }
+        .round-counter {
+            margin-top: 5px;
+        }
+        .total-rounds {
+            margin-top: 5px;
+            color: #666;
+        }
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        .results-table th, .results-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .results-table th {
+            background-color: #f2f2f2;
+        }
+        .game-summary {
+            margin-top: 20px;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+        }
         .payoff-settings {
             background-color: #fff;
             border: 1px solid #ddd;
@@ -177,8 +209,9 @@
     
     <div class="game-container">
         <div class="round-info">
-            Round <span id="current-round">1</span>/9
-            <div class="strategy-info">Computer Strategy: <span id="current-strategy">Always Defects</span></div>
+            Strategy <span id="current-strategy-number">1</span>/9: <span id="current-strategy">Always Defects</span>
+            <div class="round-counter">Round <span id="current-round">1</span>/9</div>
+            <div class="total-rounds">Total Rounds: <span id="total-rounds">1</span>/81</div>
         </div>
         
         <div class="choices">
@@ -205,10 +238,13 @@
     <script>
         // Game state
         const state = {
-            round: 1,
+            strategyIndex: 1, // Current strategy (1-9)
+            round: 1, // Round within current strategy (1-9)
+            totalRound: 1, // Overall round counter (1-81)
             playerScore: 0,
             computerScore: 0,
-            history: [], // Format: [{round, playerMove, computerMove, playerPoints, computerPoints}]
+            strategyScores: [], // Track scores for each strategy
+            history: [], // Format: [{strategyIndex, round, playerMove, computerMove, playerPoints, computerPoints}]
             gameOver: false,
             payoffs: {
                 // [playerCooperates, computerCooperates] => [playerPoints, computerPoints]
@@ -334,11 +370,22 @@
 
         // Initialize the game
         function initGame() {
+            state.strategyIndex = 1;
             state.round = 1;
+            state.totalRound = 1;
             state.playerScore = 0;
             state.computerScore = 0;
+            state.strategyScores = [];
             state.history = [];
             state.gameOver = false;
+
+            // Initialize scores for each strategy
+            for (let i = 1; i <= 9; i++) {
+                state.strategyScores[i] = {
+                    playerScore: 0,
+                    computerScore: 0
+                };
+            }
 
             updateUI();
             
@@ -353,12 +400,17 @@
 
         // Update the UI based on current state
         function updateUI() {
+            const currentStrategyNumberEl = document.getElementById('current-strategy-number');
+            const totalRoundsEl = document.getElementById('total-rounds');
+            
+            currentStrategyNumberEl.textContent = state.strategyIndex;
             currentRoundEl.textContent = state.round;
+            totalRoundsEl.textContent = state.totalRound;
             playerScoreEl.textContent = state.playerScore;
             computerScoreEl.textContent = state.computerScore;
             
             // Update strategy info
-            const currentStrategy = strategies[state.round];
+            const currentStrategy = strategies[state.strategyIndex];
             currentStrategyEl.textContent = `${currentStrategy.name} (${currentStrategy.description})`;
         }
 
@@ -367,21 +419,33 @@
             if (state.gameOver) return;
 
             // Get computer's move based on current strategy
-            const currentStrategy = strategies[state.round];
-            const computerMove = currentStrategy.getMove(state.history);
+            const currentStrategy = strategies[state.strategyIndex];
+            
+            // The history that should be passed to the strategy is only the history 
+            // for the current strategy's rounds
+            const strategyHistory = state.history.filter(h => h.strategyIndex === state.strategyIndex);
+            
+            // Get the computer's move
+            const computerMove = currentStrategy.getMove(strategyHistory);
 
             // Calculate points based on payoff matrix
             let key = `${playerMove}-${computerMove}`;
             let playerPoints = state.payoffs[key][0];
             let computerPoints = state.payoffs[key][1];
 
-            // Update scores
+            // Update overall scores
             state.playerScore += playerPoints;
             state.computerScore += computerPoints;
+            
+            // Update strategy-specific scores
+            state.strategyScores[state.strategyIndex].playerScore += playerPoints;
+            state.strategyScores[state.strategyIndex].computerScore += computerPoints;
 
             // Record history
             state.history.push({
+                strategyIndex: state.strategyIndex,
                 round: state.round,
+                totalRound: state.totalRound,
                 playerMove,
                 computerMove,
                 playerPoints,
@@ -392,18 +456,37 @@
             const historyEntry = document.createElement('div');
             historyEntry.className = 'history-entry';
             historyEntry.innerHTML = `
-                <strong>Round ${state.round}:</strong> 
+                <strong>Strategy ${state.strategyIndex}, Round ${state.round} (Total: ${state.totalRound}):</strong> 
                 You ${playerMove === 'cooperate' ? 'cooperated' : 'defected'}, 
                 Computer ${computerMove === 'cooperate' ? 'cooperated' : 'defected'} 
                 (You: +${playerPoints}, Computer: +${computerPoints})
             `;
             historyContainerEl.prepend(historyEntry);
 
-            // Update round
+            // Update counters
             state.round++;
-
-            // Check if game is over
+            state.totalRound++;
+            
+            // Check if we've completed all rounds for current strategy
             if (state.round > 9) {
+                state.round = 1;
+                state.strategyIndex++;
+                
+                // Add a strategy summary
+                const summarySeparator = document.createElement('div');
+                summarySeparator.className = 'strategy-summary';
+                summarySeparator.innerHTML = `
+                    <hr>
+                    <h4>Strategy ${state.strategyIndex - 1} (${currentStrategy.name}) Summary:</h4>
+                    <p>Your Score: ${state.strategyScores[state.strategyIndex - 1].playerScore}, 
+                    Computer Score: ${state.strategyScores[state.strategyIndex - 1].computerScore}</p>
+                    <hr>
+                `;
+                historyContainerEl.prepend(summarySeparator);
+            }
+
+            // Check if game is over (all strategies completed)
+            if (state.strategyIndex > 9) {
                 endGame();
             } else {
                 updateUI();
@@ -421,13 +504,50 @@
             // Show result
             resultContainerEl.classList.remove('hidden');
             
-            if (state.playerScore > state.computerScore) {
-                resultMessageEl.textContent = `Game Over! You win! (${state.playerScore} to ${state.computerScore})`;
-            } else if (state.playerScore < state.computerScore) {
-                resultMessageEl.textContent = `Game Over! Computer wins! (${state.computerScore} to ${state.playerScore})`;
-            } else {
-                resultMessageEl.textContent = `Game Over! It's a tie! (${state.playerScore} points each)`;
+            // Create a summary of results
+            let summaryHTML = `<h3>Final Results:</h3>
+                <p>Overall Score: You ${state.playerScore} - Computer ${state.computerScore}</p>
+                <table class="results-table">
+                    <tr>
+                        <th>Strategy</th>
+                        <th>Your Score</th>
+                        <th>Computer Score</th>
+                        <th>Result</th>
+                    </tr>`;
+                    
+            for (let i = 1; i <= 9; i++) {
+                const playerScore = state.strategyScores[i].playerScore;
+                const computerScore = state.strategyScores[i].computerScore;
+                let result = "Tie";
+                if (playerScore > computerScore) result = "You Won";
+                if (playerScore < computerScore) result = "Computer Won";
+                
+                summaryHTML += `
+                    <tr>
+                        <td>${strategies[i].name}</td>
+                        <td>${playerScore}</td>
+                        <td>${computerScore}</td>
+                        <td>${result}</td>
+                    </tr>
+                `;
             }
+            
+            summaryHTML += `</table>`;
+            
+            // Display final result message
+            if (state.playerScore > state.computerScore) {
+                resultMessageEl.innerHTML = `Game Over! You win! (${state.playerScore} to ${state.computerScore})`;
+            } else if (state.playerScore < state.computerScore) {
+                resultMessageEl.innerHTML = `Game Over! Computer wins! (${state.computerScore} to ${state.playerScore})`;
+            } else {
+                resultMessageEl.innerHTML = `Game Over! It's a tie! (${state.playerScore} points each)`;
+            }
+            
+            // Add summary to result container
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = 'game-summary';
+            summaryDiv.innerHTML = summaryHTML;
+            resultContainerEl.insertBefore(summaryDiv, replayBtn);
         }
 
         // Update payoff matrix from input fields
